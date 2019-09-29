@@ -4,8 +4,12 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE_TAGS := optional
 LOCAL_STATIC_ANDROID_LIBRARIES := \
-    androidx.appcompat_appcompat
-
+    android-support-v14-preference \
+    android-support-v13 \
+    android-support-v7-appcompat \
+    android-support-v7-preference \
+    android-support-v7-recyclerview \
+    android-support-v4
 LOCAL_SRC_FILES := $(call all-java-files-under, src)
 LOCAL_PACKAGE_NAME := DeviceParts
 LOCAL_CERTIFICATE := platform
