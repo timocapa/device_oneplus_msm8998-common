@@ -411,6 +411,9 @@ PRODUCT_PACKAGES += \
 
 # Shipping API level (for CTS backward compatibility)
 PRODUCT_SHIPPING_API_LEVEL := 25
+# Security patch level
+VENDOR_SECURITY_PATCH := 2019-08-05
+
 
 # Soong
 PRODUCT_SOONG_NAMESPACES += \
@@ -496,4 +499,3 @@ PRODUCT_BOOT_JARS += \
 
 # Enable updating of APEXes
 $(call inherit-product, $(SRC_TARGET_DIR)/product/updatable_apex.mk)
-
