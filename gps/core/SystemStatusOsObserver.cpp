@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -67,6 +67,7 @@ void SystemStatusOsObserver::setSubscriptionObj(IDataItemSubscription* subscript
         inline SetSubsObj(ObserverContext& context, IDataItemSubscription* subscriptionObj) :
                 mContext(context), mSubsObj(subscriptionObj) {}
         void proc() const {
+            LOC_LOGi("SetSubsObj::enter");
             mContext.mSubscriptionObj = mSubsObj;
 
             if (!mContext.mSSObserver->mDataItemToClients.empty()) {
@@ -76,6 +77,7 @@ void SystemStatusOsObserver::setSubscriptionObj(IDataItemSubscription* subscript
                 mContext.mSubscriptionObj->subscribe(dis, mContext.mSSObserver);
                 mContext.mSubscriptionObj->requestData(dis, mContext.mSSObserver);
             }
+            LOC_LOGi("SetSubsObj::exit");
         }
     };
 
@@ -97,6 +99,7 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
                 list<DataItemId>& l, IDataItemObserver* client, bool requestData) :
                 mParent(parent), mClient(client),
                 mDataItemSet(containerTransfer<list<DataItemId>, unordered_set<DataItemId>>(l)),
+                diItemlist(l),
                 mToRequestData(requestData) {}
 
         void proc() const {
@@ -107,16 +110,13 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
             mParent->sendCachedDataItems(mDataItemSet, mClient);
 
             // Send subscription set to framework
-            if (nullptr != mParent->mContext.mSubscriptionObj && !dataItemsToSubscribe.empty()) {
-                LOC_LOGD("Subscribe Request sent to framework for the following");
-                mParent->logMe(dataItemsToSubscribe);
-
+            if (nullptr != mParent->mContext.mSubscriptionObj) {
                 if (mToRequestData) {
-                    mParent->mContext.mSubscriptionObj->requestData(
-                            containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
-                                    std::move(dataItemsToSubscribe)),
-                            mParent);
-                } else {
+                    LOC_LOGD("Request Data sent to framework for the following");
+                    mParent->mContext.mSubscriptionObj->requestData(diItemlist, mParent);
+                } else if (!dataItemsToSubscribe.empty()) {
+                    LOC_LOGD("Subscribe Request sent to framework for the following");
+                    mParent->logMe(dataItemsToSubscribe);
                     mParent->mContext.mSubscriptionObj->subscribe(
                             containerTransfer<unordered_set<DataItemId>, list<DataItemId>>(
                                     std::move(dataItemsToSubscribe)),
@@ -127,6 +127,7 @@ void SystemStatusOsObserver::subscribe(const list<DataItemId>& l, IDataItemObser
         mutable SystemStatusOsObserver* mParent;
         IDataItemObserver* mClient;
         const unordered_set<DataItemId> mDataItemSet;
+        const list<DataItemId> diItemlist;
         bool mToRequestData;
     };
 
@@ -348,11 +349,6 @@ void SystemStatusOsObserver::notify(const list<IDataItemCore*>& dlist)
         vector<IDataItemCore*> dataItemVec(dlist.size());
 
         for (auto each : dlist) {
-            IF_LOC_LOGD {
-                string dv;
-                each->stringify(dv);
-                LOC_LOGD("notify: DataItem In Value:%s", dv.c_str());
-            }
 
             IDataItemCore* di = DataItemsFactoryProxy::createNewDataItem(each->getId());
             if (nullptr == di) {
@@ -365,6 +361,11 @@ void SystemStatusOsObserver::notify(const list<IDataItemCore*>& dlist)
 
             // add this dataitem if updated from last one
             dataItemVec.push_back(di);
+            IF_LOC_LOGD {
+                string dv;
+                di->stringify(dv);
+                LOC_LOGd("notify: DataItem In Value:%s", dv.c_str());
+            }
         }
 
         if (!dataItemVec.empty()) {
@@ -405,7 +406,8 @@ void SystemStatusOsObserver::turnOn(DataItemId dit, int timeOut)
             DataItemId mDataItemId;
             int mTimeOut;
         };
-        mContext.mMsgTask->sendMsg(new (nothrow) HandleTurnOnMsg(this, dit, timeOut));
+        mContext.mMsgTask->sendMsg(
+                new (nothrow) HandleTurnOnMsg(mContext.mFrameworkActionReqObj, dit, timeOut));
     }
     else {
         // Found in map, update reference count
@@ -459,8 +461,9 @@ bool SystemStatusOsObserver::connectBackhaul()
                     mFwkActionReqObj(fwkActReq) {}
             virtual ~HandleConnectBackhaul() {}
             void proc() const {
-                LOC_LOGD("HandleConnectBackhaul");
+                LOC_LOGi("HandleConnectBackhaul::enter");
                 mFwkActionReqObj->connectBackhaul();
+                LOC_LOGi("HandleConnectBackhaul::exit");
             }
             IFrameworkActionReq* mFwkActionReqObj;
         };
@@ -488,8 +491,9 @@ bool SystemStatusOsObserver::disconnectBackhaul()
                     mFwkActionReqObj(fwkActReq) {}
             virtual ~HandleDisconnectBackhaul() {}
             void proc() const {
-                LOC_LOGD("HandleDisconnectBackhaul");
+                LOC_LOGi("HandleDisconnectBackhaul::enter");
                 mFwkActionReqObj->disconnectBackhaul();
+                LOC_LOGi("HandleDisconnectBackhaul::exit");
             }
             IFrameworkActionReq* mFwkActionReqObj;
         };
